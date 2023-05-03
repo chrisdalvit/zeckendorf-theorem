@@ -128,7 +128,7 @@ qed(simp add: inc_seq_on_def)
 \<comment> \<open>
   Use this lemma to show that if sequence contains 0 then it can later be obmitted for fibs
 \<close>
-lemma "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> f x = 0 \<Longrightarrow> x = 0"
+lemma zero_starts_inc_seq: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> f x = 0 \<Longrightarrow> x = 0"
   using inc_seq_strict_mono[of f k 0 x] by auto
 
 \<comment> \<open>
@@ -201,6 +201,55 @@ proof -
     thus "fib (Suc i) > n" 
       using \<open>\<not> is_fib n\<close> fib_implies_is_fib order_le_imp_less_or_eq le_fibs_idx_set_def by fastforce
   qed(insert no_fib_implies_le_fibs_idx_set \<open>\<not> is_fib n\<close> finite_smaller_fibs Max_in le_fibs_idx_set_def, auto)
+qed
+
+lemma
+  assumes "n > 0" "n = (\<Sum> i=0..k. fib (c i))" "inc_seq_on c {0..k-1}"
+  shows "\<exists> k c. n = (\<Sum> i=0..k. fib (c i)) \<and> inc_seq_on c {0..k-1} \<and> (\<forall> i\<in>{0..k}. c i \<ge> 1)"
+proof(cases k)
+  case 0
+  then show ?thesis
+  proof(cases "c 0 = 0")
+    case False
+    show ?thesis using assms False zero_starts_inc_seq[OF assms(3)] 0 by fastforce
+  qed(insert assms 0 fib0, auto)
+next
+  case (Suc nat)
+  have c: "inc_seq_on c {0..nat-1}"
+    using assms unfolding Suc inc_seq_on_def by simp 
+  have "n = (\<Sum>i = 0..Suc nat. fib (c i))"
+    using assms unfolding Suc by simp
+  then show ?thesis
+  proof(cases "c 0 = 0")
+    case True
+    let "?c'" = "(\<lambda> i. c (Suc i))"
+    have "inc_seq_on c {0..nat}"
+      using assms unfolding Suc inc_seq_on_def
+      by auto
+    hence c: "inc_seq_on ?c' {0..nat-1}"
+      unfolding inc_seq_on_def 
+      sorry
+    have "n = fib (c 0) + (\<Sum> i=1..k. fib (c i))"
+      using assms True by (simp add: sum_shift_lb_Suc0_0)
+    hence s: "n = (\<Sum> i=1..Suc nat. fib (c i))"
+      unfolding True fib0 Suc by simp
+    have b:"\<forall> i \<in> {0..nat}. ?c' i \<ge> 1"
+      using assms zero_starts_inc_seq Suc
+      by (metis One_nat_def Suc_eq_plus1 Suc_le_mono bot_nat_0.extremum diff_Suc_1 inc_seq_on_def le_Suc_eq less_nat_zero_code)
+    have a: "n = (\<Sum> i=0..nat. fib (?c' i))"
+      using s sum.shift_bounds_cl_Suc_ivl unfolding One_nat_def by blast
+    then show ?thesis
+      using a b c by auto
+  next
+    case False
+    have "\<forall> i\<in>{0..k}. c i \<ge> 1"
+      using zero_starts_inc_seq[OF assms(3)] assms False Suc unfolding inc_seq_on_def
+      apply auto
+      apply (metis (no_types, opaque_lifting) Suc_le_D Suc_le_mono atLeastAtMost_iff bot_nat_0.extremum_strict le_simps(3) not_gr0)
+      by (metis Suc_le_D atLeastAtMost_iff bot_nat_0.extremum_uniqueI less_nat_zero_code not_less_eq_eq)
+    then show ?thesis
+      using assms by auto
+  qed
 qed
 
 \<comment> \<open>
