@@ -252,26 +252,64 @@ proof
     using fib_idx_ge_two_fib_sum_not_zero[of 1 k c] assms add_is_1 one_fib_idxs by(cases "k=0", fastforce, auto)
 qed simp
 
+
+lemma aux: "i < j \<Longrightarrow> fib(Suc i) \<le> fib j"
+proof(induct j)
+  case 0
+  then show ?case by simp
+next
+  case (Suc j)
+  then show ?case
+    proof(cases "i=j")
+      case True
+      then show ?thesis by simp
+    next
+      case False
+      have "fib (Suc i) \<le> fib j" using Suc False by simp
+      then show ?thesis
+        using fib_Suc_mono[of j] by simp
+    qed
+qed
+
+lemma inc_seq_zero_at_start: "inc_seq_on c {0..k-1} \<Longrightarrow> c k = 0 \<Longrightarrow> k = 0"
+  unfolding inc_seq_on_def
+  by (metis One_nat_def Suc_eq_plus1 Suc_pred atLeast0AtMost atMost_iff less_nat_zero_code not_gr_zero order.refl)
+
 lemma 
   assumes "inc_seq_on c {0..k-1}" "\<forall>i\<in>{0..k}. c i \<ge> 2"
   shows "(\<Sum> i=0..k. fib (c i)) < fib (Suc (c k))"
   using assms
-proof(induct "c k" arbitrary: k )
-  case 0
+proof(induct "c k" arbitrary: k rule: nat_less_induct)
+  case 1
   then show ?case
-    apply simp
-    by (metis atLeastAtMost_iff bot_nat_0.extremum le_refl not_numeral_le_zero)
-next
-  case (Suc x)
-  then show ?case 
-  proof(induct k)
+  proof(cases "c k")
     case 0
-    then show ?case using Suc fib_index_strict_mono by auto
+    show ?thesis
+      using inc_seq_zero_at_start[OF 1(2) 0] 0 by simp
   next
-    case 2: (Suc k)
-    then show ?case
-      apply simp
-      sorry
+    case (Suc nat)
+    show ?thesis
+    proof(cases k)
+      case 0
+      then show ?thesis
+        unfolding 0 using fib_index_strict_mono assms(2) by simp
+    next
+      case 2: (Suc n1)
+      have le1: "c(k-1) + 1 < c k"
+        using 1(2) unfolding inc_seq_on_def by (metis "2" Suc_eq_plus1 atMost_atLeast0 atMost_iff diff_Suc_1 order.refl)
+      hence le2: "c(k-1) < c k" by auto
+      have a: "(\<Sum>i = 0..k. fib (c i)) = fib(c k) + (\<Sum>i = 0..k-1. fib (c i))" using 1 2 by simp
+      have e: "(\<Sum>i = 0..(k-1). fib (c i)) < fib (Suc (c (k-1)))" using le2 1 unfolding inc_seq_on_def by auto
+      have "c(k-1) < nat"
+        using Suc le1 by simp
+      have d: "fib (Suc (c (k-1))) \<le> fib nat"
+        using aux[OF \<open>c(k-1) < nat\<close>] by simp
+      have b: "(\<Sum>i = 0..k - 1. fib (c i)) < fib nat"
+        using e d by simp
+      show ?thesis
+        unfolding Suc fib.simps a
+        using b by simp
+    qed
   qed
 qed
 
@@ -314,6 +352,9 @@ proof
         using d3 unfolding IH_step by auto
     qed
   qed
+qed(simp add: assms)
+
+
 (*
   proof(cases "k=0")
     case True
