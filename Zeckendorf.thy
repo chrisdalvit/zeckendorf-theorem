@@ -253,23 +253,8 @@ proof
 qed simp
 
 
-lemma aux: "i < j \<Longrightarrow> fib(Suc i) \<le> fib j"
-proof(induct j)
-  case 0
-  then show ?case by simp
-next
-  case (Suc j)
-  then show ?case
-    proof(cases "i=j")
-      case True
-      then show ?thesis by simp
-    next
-      case False
-      have "fib (Suc i) \<le> fib j" using Suc False by simp
-      then show ?thesis
-        using fib_Suc_mono[of j] by simp
-    qed
-qed
+lemma smaller_index_implies_fib_le: "i < j \<Longrightarrow> fib(Suc i) \<le> fib j"
+  using fib_mono by (induct j, auto)
 
 lemma inc_seq_zero_at_start: "inc_seq_on c {0..k-1} \<Longrightarrow> c k = 0 \<Longrightarrow> k = 0"
   unfolding inc_seq_on_def
@@ -283,34 +268,21 @@ proof(induct "c k" arbitrary: k rule: nat_less_induct)
   case 1
   then show ?case
   proof(cases "c k")
-    case 0
-    show ?thesis
-      using inc_seq_zero_at_start[OF 1(2) 0] 0 by simp
-  next
     case (Suc nat)
     show ?thesis
     proof(cases k)
-      case 0
-      then show ?thesis
-        unfolding 0 using fib_index_strict_mono assms(2) by simp
-    next
-      case 2: (Suc n1)
-      have le1: "c(k-1) + 1 < c k"
-        using 1(2) unfolding inc_seq_on_def by (metis "2" Suc_eq_plus1 atMost_atLeast0 atMost_iff diff_Suc_1 order.refl)
-      hence le2: "c(k-1) < c k" by auto
-      have a: "(\<Sum>i = 0..k. fib (c i)) = fib(c k) + (\<Sum>i = 0..k-1. fib (c i))" using 1 2 by simp
-      have e: "(\<Sum>i = 0..(k-1). fib (c i)) < fib (Suc (c (k-1)))" using le2 1 unfolding inc_seq_on_def by auto
-      have "c(k-1) < nat"
-        using Suc le1 by simp
-      have d: "fib (Suc (c (k-1))) \<le> fib nat"
-        using aux[OF \<open>c(k-1) < nat\<close>] by simp
-      have b: "(\<Sum>i = 0..k - 1. fib (c i)) < fib nat"
-        using e d by simp
-      show ?thesis
-        unfolding Suc fib.simps a
-        using b by simp
-    qed
-  qed
+      case k_Suc: (Suc _)
+      have "c(k-1) + 1 < c k" "c(k-1) < c k"
+        using 1(2) k_Suc unfolding inc_seq_on_def by (force)+
+      have sum_decomp: "(\<Sum>i = 0..k. fib (c i)) = fib(c k) + (\<Sum>i = 0..k-1. fib (c i))" 
+        using k_Suc by simp
+      have sum_upper: "(\<Sum>i = 0..(k-1). fib (c i)) < fib (Suc (c (k-1)))" 
+        using \<open>c(k-1) < c k\<close> 1 unfolding inc_seq_on_def by auto
+      have fib_upper: "fib (Suc (c (k-1))) \<le> fib nat"
+        using smaller_index_implies_fib_le Suc \<open>c(k-1) + 1 < c k\<close> by simp
+      show ?thesis unfolding Suc fib.simps sum_decomp using sum_upper fib_upper by simp
+    qed(simp add: fib_index_strict_mono assms(2))
+  qed(insert inc_seq_zero_at_start[OF 1(2)], auto)
 qed
 
 lemma fib_unique_fib_sum:
