@@ -260,7 +260,7 @@ lemma inc_seq_zero_at_start: "inc_seq_on c {0..k-1} \<Longrightarrow> c k = 0 \<
   unfolding inc_seq_on_def
   by (metis One_nat_def Suc_eq_plus1 Suc_pred atLeast0AtMost atMost_iff less_nat_zero_code not_gr_zero order.refl)
 
-lemma 
+lemma fib_sum_upper_bound:
   assumes "inc_seq_on c {0..k-1}" "\<forall>i\<in>{0..k}. c i \<ge> 2"
   shows "(\<Sum> i=0..k. fib (c i)) < fib (Suc (c k))"
   using assms
@@ -285,77 +285,17 @@ proof(induct "c k" arbitrary: k rule: nat_less_induct)
   qed(insert inc_seq_zero_at_start[OF 1(2)], auto)
 qed
 
-lemma fib_unique_fib_sum:
-  assumes "inc_seq_on c {0..k-1}" "\<forall>i\<in>{0..k}. c i \<ge> 2" "fib i = n" "n > 1"
-  shows "(\<Sum> i=0..k. fib (c i)) = n \<longleftrightarrow> k = 0 \<and> c 0 = i"
-proof
-  assume ass: "(\<Sum>i = 0..k. fib (c i)) = n"
-  hence decomp: "fib (c 0) + (\<Sum>i = 1..k. fib (c i)) = n" by (simp add: sum.atLeast_Suc_atMost)
-  show "k = 0 \<and> c 0 = i"
-    using ass assms
-  proof(induct n arbitrary: c k i rule: nat_less_induct)
-    case IH_step: (1 n)
-    consider "c 0 = i" | "c 0 < i" | "c 0 > i" by linarith
-    then show ?case
-    proof(cases)
-      case 1
-      have d1: "fib (c 0) + (\<Sum>i = 1..k. fib (c i)) = n"
-        using IH_step by (metis One_nat_def bot_nat_0.extremum sum.atLeast_Suc_atMost)
-      have "k > 0 \<longrightarrow> (\<Sum>i = 1..k. fib (c i)) \<ge> 1"
-        using fib_idx_ge_two_fib_sum_not_zero[of 0 k c] IH_step(4)
-        by (metis One_nat_def Suc_leI atLeastAtMost_iff bot_nat_0.not_eq_extremum fib_idx_ge_two_fib_sum_not_zero le0)
-      then show ?thesis using d1 1 IH_step(5) by auto
-    next
-      case 2
-      have d2: "fib (c 0) + (\<Sum>i = 1..k. fib (c i)) = n"
-        using IH_step by (metis One_nat_def bot_nat_0.extremum sum.atLeast_Suc_atMost)
-      have "fib (c 0) < fib i"
-        using 2 fib_index_strict_mono[of "c 0" i] IH_step(4) by auto
-      then show ?thesis
-        using IH_step 
-        sorry
-    next
-      case 3
-      have d3: "fib (c 0) + (\<Sum>i = 1..k. fib (c i)) = n"
-        using IH_step by (metis One_nat_def bot_nat_0.extremum sum.atLeast_Suc_atMost)
-      have "fib i < fib (c 0)"
-        using 3 IH_step by (metis Suc_1 fib_mono ge_two_fib_unique_idx less_eq_Suc_le nless_le)
-      then show ?thesis
-        using d3 unfolding IH_step by auto
-    qed
-  qed
-qed(simp add: assms)
-
-
-(*
-  proof(cases "k=0")
-    case True
-    have "c 0 = i" using decomp True ge_two_eq_fib_implies_eq_idx assms(3,4) by auto
-    then show ?thesis using True by auto
-  next
-    case False
-    have s_ge_1: "(\<Sum>i = 1..k. fib (c i)) \<ge> 1" 
-      using fib_idx_ge_two_fib_sum_not_zero[of 1 k c] False assms(1,2) unfolding inc_seq_on_def
-      by (metis atLeastAtMost_iff less_one linorder_le_less_linear zero_le)
-    consider "c 0 = i" | "c 0 < i" | "c 0 > i" by linarith
-    then show ?thesis
-    proof(cases)
-      case 1
-      show ?thesis using s_ge_1 decomp unfolding 1 assms(3) by auto
-    next
-      case 2
-      show ?thesis
-
-        sorry
-    next
-      case 3
-      have "fib(c 0) > fib (i)" 
-        using 3 assms by (metis Suc_1 Suc_leI fib_mono ge_two_fib_unique_idx nat_less_le)
-      then show ?thesis using decomp s_ge_1  assms(3) by linarith
-    qed
-  qed
-qed(simp add: assms)
-*)
+lemma betw_fib_aux: "\<exists> i. fib i \<le> n \<and> fib(Suc i) > n"
+proof(cases "is_fib n")
+  case True
+  then obtain i where "fib i = n" unfolding is_fib_def by auto
+  then show ?thesis
+    by (metis One_nat_def Suc_1 antisym_conv3 fib.simps(1) fib_1 fib_2 fib_strict_mono less_eq_Suc_le less_one order.refl)
+next
+  case False
+  then show ?thesis
+    using no_fib_betwn_fibs by force
+qed
 
 lemma
   assumes "n > 0"
@@ -363,36 +303,71 @@ lemma
   assumes "n = (\<Sum> i=0..k'. fib (c' i))" "inc_seq_on c' {0..k'-1}" "\<forall>i\<in>{0..k'}. c' i \<ge> 2"
   shows "k = k' \<and> (\<forall> i \<in> {0..k}. c i = c' i)"
   using assms
-proof(induct n arbitrary: k k' c c' rule: nat_less_induct)
-  case (1 n)
+proof(induct n arbitrary: k k' rule: nat_less_induct)
+  case IH: (1 n)
+  consider "n = 0" | "n = 1" | "n \<ge> 2" by linarith
   then show ?case
-    
-    sorry
-qed
-
-(*
-proof(induct n arbitrary: k k' c c')
-  case (Suc n)
-  then show ?case
-  proof(cases "n = 0")
-    case True
-    then show ?thesis using one_unique_fib_sum Suc One_nat_def atLeastAtMost_iff le_antisym by metis
+  proof(cases)
+    case 1
+    then show ?thesis using IH by simp
   next
-    case False
-    hence "n > 0" by simp
-    then obtain c1 k1 where fst: "n = (\<Sum>i = 0..k1. fib (c1 i))" "inc_seq_on c1 {0..k1 - 1}" "\<forall>i\<in>{0..k1}. 2 \<le> c1 i" 
-      using zeckendorfI by blast
-    then obtain c2 k2 where snd: "n = (\<Sum>i = 0..k2. fib (c2 i))" "inc_seq_on c2 {0..k2 - 1}" "\<forall>i\<in>{0..k2}. 2 \<le> c2 i" 
-      using zeckendorfI by blast
-    note "IH" = Suc(1)
-    have "k1 = k2 \<and> (\<forall>i\<in>{0..k1}. c1 i = c2 i)" using fst snd IH \<open>n > 0\<close> by blast
-    then show ?thesis
+    case 2
+    then show ?thesis using IH one_unique_fib_sum by simp
+  next
+    case 3
+    obtain i where "fib i \<le> n" "fib(Suc i) > n" using betw_fib_aux by auto
+    have "2 \<le> i"
+        using \<open>fib i \<le> n\<close> \<open>fib(Suc i) > n\<close> IH 3
+        by (metis Fib.fib1 One_nat_def Suc_1 fib_2 less_2_cases less_one linorder_not_le)
       
-      sorry
+    consider "c k > i" | "c k = i" | "c k < i" by linarith
+    then show ?thesis
+    proof(cases)
+      case 1
+      have "fib i < fib(c k)" using fib_index_strict_mono[OF \<open>2 \<le> i\<close> 1] by simp
+      hence "fib(Suc i) \<le> fib(c k)" 
+        using IH 1 smaller_index_implies_fib_le by presburger 
+      moreover have "fib(c k) \<le> n"
+        unfolding IH(3) by(induct k, auto)
+      ultimately show ?thesis
+        using \<open>fib(Suc i) > n\<close> by simp
+    next
+      case 2
+      then show ?thesis
+        sorry
+    next
+      case 3
+      have "inc_seq_on c {0..k - 1 - 1}" "\<forall>i\<in>{0..k-1}. 2 \<le> c i"
+        using IH unfolding inc_seq_on_def by simp+
+      have "k > 0"
+        using IH(2-8) 3 \<open>fib i \<le> n\<close> fib_index_strict_mono leD by(cases "k=0", auto, blast)
+      hence "c (k-1) + 1 < c k"
+        using 3 IH(4) unfolding inc_seq_on_def by force
+      hence "c (k-1) + 3 \<le> i" using 3 by simp 
+      have sum_eq: "fib (c k) + (\<Sum>i = 0..k-1. fib (c i)) = (\<Sum>i = 0..k. fib (c i))"
+        using \<open>k > 0\<close>
+        by (smt (verit, del_insts) Suc_pred' add.commute sum.atLeast0_atMost_Suc)
+      have "(\<Sum>i = 0..k-1. fib (c i)) < fib (Suc (c (k-1)))"
+        using fib_sum_upper_bound[OF \<open>inc_seq_on c {0..k - 1 - 1}\<close> \<open>\<forall>i\<in>{0..k-1}. 2 \<le> c i\<close>] by simp
+      have "fib (Suc (c (k-1))) \<le> fib (i-2)"
+        using 3 \<open>c (k-1) + 1 < c k\<close> by (simp add: fib_mono)
+      have a: "fib (c k) + (\<Sum>i = 0..k-1. fib (c i)) < fib (c k) + fib (i-2)"
+        using IH(3) \<open>k > 0\<close> \<open>(\<Sum>i = 0..k-1. fib (c i)) < fib (Suc (c (k-1)))\<close> 
+        \<open>fib (Suc (c (k-1))) \<le> fib (i-2)\<close> by simp
+      have "fib (c k) \<le> fib (i-1)"
+        using 3 fib_mono by fastforce
+      have "fib (c k) + (\<Sum>i = 0..k-1. fib (c i)) < fib (i-1) + fib (i-2)"
+        using a \<open>fib (c k) \<le> fib (i-1)\<close> by simp
+      hence "(\<Sum>i = 0..k. fib (c i)) < fib (i-1) + fib (i-2)"
+        using sum_eq by simp
+      hence "(\<Sum>i = 0..k. fib (c i)) < fib i"
+        using fib.simps(3)
+        by (metis One_nat_def Suc_diff_le Suc_le_D \<open>2 \<le> i\<close> diff_Suc_1 diff_Suc_Suc numeral_2_eq_2)
+      then show ?thesis
+        using \<open>fib i \<le> n\<close> IH(3) by simp
+    qed
   qed
-qed simp
-*)
-
+qed
 
 (*
 lemma no_fib_empty_index: "\<not> is_fib n \<Longrightarrow> fib_idx_set n = {}"
