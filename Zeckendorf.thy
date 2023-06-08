@@ -98,10 +98,13 @@ lemma inc_seq_on_aux: "inc_seq_on c {0..k - 1} \<Longrightarrow> n - fib i < fib
 lemma inc_seq_smaller_domain: "inc_seq_on f {0..Suc k} \<Longrightarrow> inc_seq_on f {0..k}"
   unfolding inc_seq_on_def by simp
 
-lemma inc_seq_suc_greater: "inc_seq_on f I \<Longrightarrow> x \<in> I \<Longrightarrow> f(x+1) > f x"
+lemma inc_seq_suc_greater: "inc_seq_on f I \<Longrightarrow> x \<in> I \<Longrightarrow> f x < f(Suc x)"
   unfolding inc_seq_on_def by fastforce
 
-lemma inc_seq_add_positive_geater: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> n > 0 \<Longrightarrow> x + n \<in> {0..k} \<Longrightarrow> f(x+n) > f x"
+lemma inc_seq_suc_greater_v2: "inc_seq_on f I \<Longrightarrow> x \<in> I \<Longrightarrow> Suc (f x) < f(Suc x)"
+  unfolding inc_seq_on_def by fastforce
+
+lemma inc_seq_add_positive_geater: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> n > 0 \<Longrightarrow> x + n \<in> {0..k} \<Longrightarrow> Suc (f x) < f(x+n)"
 proof(induct n)
   case (Suc n)
   show ?case
@@ -110,14 +113,14 @@ proof(induct n)
     hence "f x < f (x + n)" using Suc by auto
     moreover have "... < f (x + n + 1)" using Suc inc_seq_suc_greater by auto
     ultimately show ?thesis by simp
-  qed(insert Suc inc_seq_suc_greater, auto)
+  qed(insert Suc inc_seq_suc_greater_v2, auto)
 qed auto
 
-lemma inc_seq_strict_mono: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> y \<in> {0..k} \<Longrightarrow> y > x \<Longrightarrow> f y > f x"
+lemma inc_seq_strict_mono: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> y \<in> {0..k} \<Longrightarrow> y > x \<Longrightarrow> Suc(f x) < f y"
   using inc_seq_add_positive_geater less_imp_add_positive by metis
 
-lemma inc_seq_mono: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> y \<in> {0..k} \<Longrightarrow> y \<ge> x \<Longrightarrow> f y \<ge> f x"
-  using inc_seq_strict_mono order_le_less unfolding inc_seq_on_def by metis
+lemma inc_seq_strict_mono_v2: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> y \<in> {0..k} \<Longrightarrow> y > x \<Longrightarrow> f x < f y"
+  using inc_seq_strict_mono Suc_lessD by blast
 
 lemma inc_seq_upper_bound: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> f x < f(Suc k)"
 proof(induct k)
@@ -139,7 +142,7 @@ qed(simp add: inc_seq_on_def)
 lemma inc_seq_inj_on: "inc_seq_on f {0..k} \<Longrightarrow> inj_on f {0..Suc k}"
 proof -
   assume "inc_seq_on f {0..k}"
-  hence "inj_on f {0..k}" unfolding inj_on_def using inc_seq_strict_mono nat_neq_iff by metis
+  hence "inj_on f {0..k}" unfolding inj_on_def using inc_seq_strict_mono_v2 nat_neq_iff by metis
   moreover have "\<forall> x\<in>{0..k}. f x = f (Suc k) \<longrightarrow> x = Suc k"
     using \<open>inc_seq_on f {0..k}\<close> inc_seq_upper_bound less_not_refl by metis
   ultimately show "inj_on f {0..Suc k}"
@@ -387,3 +390,24 @@ qed
 
 definition non_consecutive :: "nat set \<Rightarrow> bool" where
 "non_consecutive I = (\<forall> x \<in> I. Suc x \<notin> I)"
+
+lemma "inc_seq_on f {0..k} \<Longrightarrow> non_consecutive (f ` {0..k})"
+  unfolding non_consecutive_def
+proof
+  fix y
+  assume assms: "y \<in> f ` {0..k}" "inc_seq_on f {0..k}"
+  show "Suc y \<notin> f ` {0..k}"
+  proof(rule ccontr)
+    assume "\<not> Suc y \<notin> f ` {0..k}"
+    then obtain x x' where args: "x \<in> {0..k}" "f x = y" "x' \<in> {0..k}" "f x' = Suc y"
+      using assms by auto
+    consider "x = x'" | "x > x'" | "x < x'" by linarith
+    then show False
+      by(cases, insert inc_seq_strict_mono[OF assms(2)] args, force+)
+  qed
+qed
+
+lemma 
+  assumes "non_consecutive I"
+  shows "\<exists> f k. inc_seq_on f {0..k} \<and> f ` {0..k} = I"
+  sorry
