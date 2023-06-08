@@ -384,3 +384,6 @@ proof(induct n arbitrary: k k' rule: nat_less_induct)
     qed
   qed(insert IH one_unique_fib_sum, auto)
 qed
+
+definition non_consecutive :: "nat set \<Rightarrow> bool" where
+"non_consecutive I = (\<forall> x \<in> I. Suc x \<notin> I)"
