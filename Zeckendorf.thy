@@ -394,3 +394,5 @@ proof(induct n arbitrary: k k' rule: nat_less_induct)
 qed
 
 \<comment> \<open>-------------------------------------- END PROOF -----------------------------------------\<close>
+
+end
