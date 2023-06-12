@@ -1,3 +1,5 @@
+section \<open>Zeckendorf's Theorem\<close>
+
 theory Zeckendorf
 
 imports 
@@ -6,8 +8,13 @@ imports
 
 begin
 
-\<comment> \<open>-------------------------------------- DEFINITIONS -----------------------------------------\<close>
-
+subsection \<open>Definitions\<close>
+text \<open>
+  Formulate auxiliary definitions. An increasing sequence is a predicate of a function $f$
+  together with a set $I$. $f$ is an increasing sequence on $I$, if $f(x)+1 < f(x+1)$ 
+  for all $x \in I$. This definition is used to ensure that the Fibonacci numbers in the sum are
+  non-consecutive.
+\<close>
 definition is_fib :: "nat \<Rightarrow> bool" where
   "is_fib n = (\<exists> i. n = fib i)"
 
@@ -20,9 +27,7 @@ definition inc_seq_on :: "(nat \<Rightarrow> nat) \<Rightarrow> nat set \<Righta
 definition fib_idx_set :: "nat \<Rightarrow> nat set" where
   "fib_idx_set n = {i. fib i = n}"
 
-\<comment> \<open>-------------------------------------- DEFINITIONS -----------------------------------------\<close>
-
-\<comment> \<open>-------------------------------------- LEMMAS FIB NUMERS -----------------------------------\<close>
+subsection \<open>Auxiliary Lemmas\<close>
 
 lemma fib_values[simp]:
   "fib 3 = 2"
@@ -100,81 +105,13 @@ qed simp
 lemma nat_ge_2_fib_idx_bound: "2 \<le> n \<Longrightarrow> fib i \<le> n \<Longrightarrow> n < fib (Suc i) \<Longrightarrow> 2 \<le> i"
   by (metis One_nat_def fib_1 fib_2 le_Suc_eq less_2_cases linorder_not_le not_less_eq)
 
-\<comment> \<open>-------------------------------------- LEMMAS FIB NUMERS -----------------------------------\<close>
-
-
-\<comment> \<open>-------------------------------------- LEMMAS INC SEQ -----------------------------------\<close>
-
-\<comment> \<open>AUX Lemma maybe simplify\<close>
 lemma inc_seq_on_aux: "inc_seq_on c {0..k - 1} \<Longrightarrow> n - fib i < fib (i-1) \<Longrightarrow> fib (c k) < fib i \<Longrightarrow> 
                        (n - fib i) = (\<Sum> i=0..k. fib (c i)) \<Longrightarrow> Suc (c k) < i"
   by (metis fib_mono bot_nat_0.extremum diff_Suc_1 leD le_SucE linorder_le_less_linear not_add_less1 sum.last_plus)
 
-lemma inc_seq_smaller_domain: "inc_seq_on f {0..Suc k} \<Longrightarrow> inc_seq_on f {0..k}"
-  unfolding inc_seq_on_def by simp
-
-lemma inc_seq_suc_greater: "inc_seq_on f I \<Longrightarrow> x \<in> I \<Longrightarrow> f x < f(Suc x)"
-  unfolding inc_seq_on_def by fastforce
-
-lemma inc_seq_suc_greater2: "inc_seq_on f I \<Longrightarrow> x \<in> I \<Longrightarrow> Suc (f x) < f(Suc x)"
-  unfolding inc_seq_on_def by fastforce
-
-lemma inc_seq_add_positive_geater: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> n > 0 \<Longrightarrow> x + n \<in> {0..k} \<Longrightarrow> Suc (f x) < f(x+n)"
-proof(induct n)
-  case (Suc n)
-  show ?case
-  proof(cases "n = 0")
-    case False
-    hence "f x < f (x + n)" using Suc by auto
-    moreover have "... < f (x + n + 1)" using Suc inc_seq_suc_greater by auto
-    ultimately show ?thesis by simp
-  qed(insert Suc inc_seq_suc_greater2, auto)
-qed auto
-
-lemma inc_seq_strict_mono: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> y \<in> {0..k} \<Longrightarrow> y > x \<Longrightarrow> Suc(f x) < f y"
-  using inc_seq_add_positive_geater less_imp_add_positive by metis
-
-lemma inc_seq_strict_mono2: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> y \<in> {0..k} \<Longrightarrow> y > x \<Longrightarrow> f x < f y"
-  using inc_seq_strict_mono Suc_lessD by blast
-
-lemma inc_seq_upper_bound: "inc_seq_on f {0..k} \<Longrightarrow> x \<in> {0..k} \<Longrightarrow> f x < f(Suc k)"
-proof(induct k)
-  case (Suc k)
-  then show ?case
-  proof(cases "x \<in> {0..k}")
-    case True
-    then show ?thesis
-      using Suc inc_seq_smaller_domain unfolding inc_seq_on_def by force
-  next
-    case False
-    hence "x = Suc k" 
-      using Suc by auto
-    then show ?thesis
-      using Suc unfolding inc_seq_on_def by fastforce
-  qed
-qed(simp add: inc_seq_on_def)
-
-lemma inc_seq_inj_on: "inc_seq_on f {0..k} \<Longrightarrow> inj_on f {0..Suc k}"
-proof -
-  assume "inc_seq_on f {0..k}"
-  hence "inj_on f {0..k}" unfolding inj_on_def using inc_seq_strict_mono2 nat_neq_iff by metis
-  moreover have "\<forall> x\<in>{0..k}. f x = f (Suc k) \<longrightarrow> x = Suc k"
-    using \<open>inc_seq_on f {0..k}\<close> inc_seq_upper_bound less_not_refl by metis
-  ultimately show "inj_on f {0..Suc k}"
-    using atLeastAtMost_iff le_Suc_eq unfolding inj_on_def by metis
-qed
-
-lemma inc_seq_bij_betw: "inc_seq_on f {0..k} \<Longrightarrow> bij_betw f {0..Suc k} (f ` {0..Suc k})"
-  using inc_seq_inj_on inj_on_imp_bij_betw by blast
-
 lemma inc_seq_zero_at_start: "inc_seq_on c {0..k-1} \<Longrightarrow> c k = 0 \<Longrightarrow> k = 0"
   unfolding inc_seq_on_def
   by (metis One_nat_def Suc_pred atLeast0AtMost atMost_iff less_nat_zero_code not_gr_zero order.refl)
-
-\<comment> \<open>-------------------------------------- LEMMAS INC SEQ -----------------------------------\<close>
-
-
-\<comment> \<open>-------------------------------------- LEMMAS FIB SUMS -----------------------------------\<close>
 
 lemma fib_sum_zero_equiv: "(\<Sum> i=n..m::nat . fib (c i)) = 0 \<longleftrightarrow> (\<forall> i\<in>{n..m}. c i = 0)"
   using finite_atLeastAtMost sum_eq_0_iff zero_fib_equiv by auto
@@ -191,11 +128,6 @@ proof
     using fib_idx_ge_two_fib_sum_not_zero[of 1 k c] assms add_is_1 one_fib_idxs by(cases "k=0", fastforce, auto)
 qed simp
 
-\<comment> \<open>-------------------------------------- LEMMAS FIB SUMS -----------------------------------\<close>
-
-
-\<comment> \<open>-------------------------------------- HELPER LEMMAS -----------------------------------\<close>
-
 lemma no_fib_betw_fibs: 
   assumes "\<not> is_fib n"
   shows "\<exists> i. fib i < n \<and> n < fib (Suc i)"
@@ -210,7 +142,7 @@ proof -
   qed(insert max_def Max_in \<open>\<not> is_fib n\<close> finite_le_fib no_fib_implies_le_fib_idx_set, auto)
 qed
 
-lemma nat_betw_fibs: 
+lemma betw_fibs: 
   shows "\<exists> i. fib i \<le> n \<and> fib(Suc i) > n"   
 proof(cases "is_fib n")
   case True
@@ -219,6 +151,10 @@ proof(cases "is_fib n")
     by (metis fib1 Suc_le_eq fib_2 fib_mono fib_strict_mono le0 le_eq_less_or_eq not_less_eq_eq)
 qed(insert no_fib_betw_fibs, force)
 
+text \<open>
+  Proof that the sum of non-consecutive Fibonacci numbers with largest member $F_i$ is strictly
+  less then $F_{i+1}$. This lemma is used for the uniqueness proof.
+\<close>
 lemma fib_sum_upper_bound:
   assumes "inc_seq_on c {0..k-1}" "\<forall>i\<in>{0..k}. c i \<ge> 2"
   shows "(\<Sum> i=0..k. fib (c i)) < fib (Suc (c k))"
@@ -226,7 +162,7 @@ proof(insert assms, induct "c k" arbitrary: k rule: nat_less_induct)
   case 1
   then show ?case
   proof(cases "c k")
-    case (Suc nat)
+    case (Suc _)
     show ?thesis
     proof(cases k)
       case k_Suc: (Suc _)
@@ -277,10 +213,12 @@ proof -
     ultimately show ?thesis by simp
   qed
 
-\<comment> \<open>-------------------------------------- HELPER LEMMAS -----------------------------------\<close>
-
-\<comment> \<open>-------------------------------------- PROOF -----------------------------------------\<close>
-
+subsection \<open>Theorem\<close>
+text \<open>
+  Now, both parts of Zeckendorf's Theorem can be proven. Firstly, the existence of an increasing 
+  sequence for a positive integer $N$ such that the corresponding Fibonacci numbers sum up to $N$ 
+  is proven. Then, the uniqueness of such an increasing sequence is proven.
+\<close>
 lemma fib_implies_zeckendorf:
   assumes "is_fib n" "n > 0"
   shows "\<exists> c k. n = (\<Sum> i=0..k. fib(c i)) \<and> inc_seq_on c {0..k-1} \<and> (\<forall> i\<in>{0..k}. c i \<ge> 2)" 
@@ -331,7 +269,7 @@ lemma fib_unique_fib_sum:
 proof
   assume ass: "n = (\<Sum>i = 0..k. fib (c i))"
   obtain j where bounds: "fib j \<le> n" "fib(Suc j) > n" "j \<ge> 2" 
-    using nat_betw_fibs assms nat_ge_2_fib_idx_bound by blast
+    using betw_fibs assms nat_ge_2_fib_idx_bound by blast
   have idx_eq: "c k = j"
     using last_fib_sum_index_constraint assms(1-3) ass bounds by simp
   have "i = j"
@@ -344,7 +282,7 @@ proof
   then show "k = 0 \<and> c 0 = i" using \<open>i = j\<close> idx_eq by simp
 qed(auto simp: assms)
 
-lemma zeckendorf_unique:
+theorem zeckendorf_unique:
   assumes "n > 0"
   assumes "n = (\<Sum> i=0..k. fib (c i))" "inc_seq_on c {0..k-1}" "\<forall>i\<in>{0..k}. c i \<ge> 2" 
   assumes "n = (\<Sum> i=0..k'. fib (c' i))" "inc_seq_on c' {0..k'-1}" "\<forall>i\<in>{0..k'}. c' i \<ge> 2"
@@ -357,7 +295,7 @@ proof(induct n arbitrary: k k' rule: nat_less_induct)
   proof(cases)
     case 3
     obtain i where bounds: "fib i \<le> n" "fib(Suc i) > n" "2 \<le> i" 
-      using nat_betw_fibs nat_ge_2_fib_idx_bound 3 by blast
+      using betw_fibs nat_ge_2_fib_idx_bound 3 by blast
     have last_idx_eq: "c' k' = i" "c k = i" "c' k' = c k"
       using last_fib_sum_index_constraint[OF 3] IH(6-8) IH(3-5) bounds by blast+
     then show ?thesis
@@ -392,7 +330,5 @@ proof(induct n arbitrary: k k' rule: nat_less_induct)
     qed
   qed(insert IH one_unique_fib_sum, auto)
 qed
-
-\<comment> \<open>-------------------------------------- END PROOF -----------------------------------------\<close>
 
 end
